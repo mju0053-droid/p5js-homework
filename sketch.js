@@ -1,455 +1,679 @@
-// ========================================
-// 1~5周累计作业：Firefly Night
-// ========================================
+// Firefly Night
 
+let num = 4;
+let bugSize;
+
+let accel = 0.01;
+let angle = 0;
+
+let titleColor;
+
+// Arrays
 let x = [];
 let y = [];
 let speedX = [];
 let speedY = [];
 
-let num = 5;
+// Game
+let targetX;
+let targetY;
+let targetSize = 35;
 
-let bugSize;
-let moonSize;
-let starSize;
+let currentTime;
+let previousTime = 0;
+let interval;
+let setTime = 1000;
 
-let moonX;
-let moonY;
+let score = 0;
+let stage = 1;
 
-let seaY;
-let grassY;
-
-let accel = 0.01;
-let angle = 0;
+// Image and sound
+let cosmosImage;
+let soundFile;
 
 
-// ========================================
-// 第1周：setup
-// ========================================
+async function setup() {
 
-function setup() {
+  cosmosImage = await loadImage("data/cosmos.jpg");
+  soundFile = await loadSound("data/catch.mp3");
 
   createCanvas(600, 500);
 
-  // 使用变量，让图形跟画布大小一起变化
   bugSize = width / 25;
-  moonSize = width / 7;
-  starSize = width / 120;
 
-  moonX = width * 0.82;
-  moonY = height * 0.18;
-
-  seaY = height * 0.65;
-  grassY = height * 0.86;
-
-
-  // =====================================
-  // 第4周：数组
-  // =====================================
+  titleColor = color(255, 225, 120);
 
   x[0] = width * 0.15;
-  x[1] = width * 0.30;
-  x[2] = width * 0.45;
-  x[3] = width * 0.65;
-  x[4] = width * 0.82;
+  x[1] = width * 0.35;
+  x[2] = width * 0.55;
+  x[3] = width * 0.75;
 
   y[0] = height * 0.35;
   y[1] = height * 0.48;
   y[2] = height * 0.28;
   y[3] = height * 0.42;
-  y[4] = height * 0.32;
-
-
-  // =====================================
-  // 第5周：速度
-  // =====================================
 
   speedX[0] = 1;
   speedX[1] = -1;
   speedX[2] = 1.2;
   speedX[3] = -1.2;
-  speedX[4] = 1;
 
   speedY[0] = 0.5;
   speedY[1] = -0.5;
   speedY[2] = 0.7;
   speedY[3] = -0.7;
-  speedY[4] = 0.5;
+
+  targetX = random(
+    targetSize,
+    width - targetSize
+  );
+
+  targetY = random(
+    height * 0.25,
+    height * 0.66
+  );
 }
 
-
-// ========================================
-// 第1周：draw
-// ========================================
 
 function draw() {
 
-  background(20, 30, 65);
+  background(10, 18, 35);
 
   drawNight();
 
+  // Stage
+  if (score < 5) {
 
-  // =====================================
-  // 第3周：for 반복
-  // =====================================
+    stage = 1;
+    setTime = 1000;
+
+  } else if (score < 10) {
+
+    stage = 2;
+    setTime = 800;
+
+  } else {
+
+    stage = 3;
+    setTime = 600;
+  }
 
   for (let i = 0; i < num; i++) {
 
-    moveBug(i);
+    if (i != 0) {
+      moveBug(i);
+    }
 
+    if (mouseIsPressed) {
 
-    // ===================================
-    // 第3周：if / else
-    // 第5周：圆形碰撞
-    // ===================================
-
-    if (checkMoon(i)) {
-
-      // 碰到月亮时变成粉橙色
-      drawBug(i, 255, 160, 130);
+      drawBug(
+        i,
+        255,
+        180,
+        200
+      );
 
     } else {
 
-      // 平时是黄色
-      drawBug(i, 255, 235, 100);
+      drawBug(
+        i,
+        255,
+        235,
+        100
+      );
     }
 
-
-    // 边界碰撞
     checkWall(i);
   }
+
+  currentTime = millis();
+
+  interval =
+    currentTime -
+    previousTime;
+
+  if (interval > setTime) {
+
+    previousTime = millis();
+
+    targetX = random(
+      targetSize,
+      width - targetSize
+    );
+
+    targetY = random(
+      height * 0.25,
+      height * 0.66
+    );
+  }
+
+  drawTarget();
+
+  noStroke();
+
+  fill(245, 240, 230);
+
+  textSize(width / 29);
+
+  text(
+    "Score: " + score,
+    width * 0.09,
+    height * 0.235
+  );
+
+  text(
+    "Stage: " + stage,
+    width * 0.09,
+    height * 0.275
+  );
+
+  drawFrame();
 }
 
 
-// ========================================
-// 第4周 函数类型①
-// 无参数 + 无返回值
-// ========================================
-
+// Background
 function drawNight() {
 
-  noStroke();
-
-
-  // =====================================
-  // 第2周：圆 + 颜色
-  // 月亮
-  // =====================================
-
-  fill(255, 235, 170);
-
-  ellipse(
-    moonX,
-    moonY,
-    moonSize,
-    moonSize
-  );
-
-
-  // 用背景颜色遮住一部分形成月牙
-  fill(20, 30, 65);
-
-  ellipse(
-    moonX + moonSize * 0.25,
-    moonY - moonSize * 0.15,
-    moonSize * 0.9,
-    moonSize * 0.9
-  );
-
-
-  // =====================================
-  // 第2周：point 点
-  // 星星
-  // =====================================
-
-  stroke(255);
-  strokeWeight(3);
-
-  point(width * 0.10, height * 0.13);
-  point(width * 0.20, height * 0.20);
-  point(width * 0.30, height * 0.11);
-  point(width * 0.40, height * 0.18);
-  point(width * 0.55, height * 0.10);
-  point(width * 0.68, height * 0.24);
-
-  strokeWeight(1);
-
-
-  // 小圆星星
-  noStroke();
-  fill(255);
-
-  ellipse(
-    width * 0.14,
-    height * 0.27,
-    starSize,
-    starSize
-  );
-
-  ellipse(
-    width * 0.36,
-    height * 0.07,
-    starSize,
-    starSize
-  );
-
-  ellipse(
-    width * 0.62,
-    height * 0.17,
-    starSize,
-    starSize
-  );
-
-
-  // =====================================
-  // 第2周：矩形
-  // 海面
-  // =====================================
-
-  fill(35, 70, 110);
-
-  rect(
+  image(
+    cosmosImage,
     0,
-    seaY,
+    0,
     width,
-    grassY - seaY
+    height
   );
 
+  // Small lights
+  noStroke();
 
-  // =====================================
-  // 月光倒影
-  // =====================================
-
-  fill(220, 220, 170);
-
+  fill(255, 220, 60, 35);
   ellipse(
-    moonX,
-    seaY + height * 0.04,
-    moonSize,
-    height * 0.02
+    width * 0.08,
+    height * 0.73,
+    18,
+    18
   );
 
+  fill(255, 230, 80);
   ellipse(
-    moonX,
-    seaY + height * 0.10,
-    moonSize * 0.7,
-    height * 0.015
+    width * 0.08,
+    height * 0.73,
+    4,
+    4
   );
 
+
+  fill(255, 220, 60, 25);
   ellipse(
-    moonX,
-    seaY + height * 0.16,
-    moonSize * 0.4,
-    height * 0.01
+    width * 0.11,
+    height * 0.79,
+    12,
+    12
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.11,
+    height * 0.79,
+    3,
+    3
   );
 
 
-  // =====================================
-  // 第2周：arc 圆弧
-  // 海面波纹
-  // =====================================
+  fill(255, 225, 70, 45);
+  ellipse(
+    width * 0.18,
+    height * 0.82,
+    24,
+    24
+  );
+
+  fill(255, 235, 90);
+  ellipse(
+    width * 0.18,
+    height * 0.82,
+    6,
+    6
+  );
+
+
+  fill(255, 220, 60, 25);
+  ellipse(
+    width * 0.16,
+    height * 0.88,
+    12,
+    12
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.16,
+    height * 0.88,
+    3,
+    3
+  );
+
+
+  fill(255, 220, 60, 30);
+  ellipse(
+    width * 0.27,
+    height * 0.78,
+    15,
+    15
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.27,
+    height * 0.78,
+    4,
+    4
+  );
+
+
+  fill(255, 225, 70, 45);
+  ellipse(
+    width * 0.31,
+    height * 0.87,
+    22,
+    22
+  );
+
+  fill(255, 235, 90);
+  ellipse(
+    width * 0.31,
+    height * 0.87,
+    6,
+    6
+  );
+
+
+  fill(255, 220, 60, 30);
+  ellipse(
+    width * 0.39,
+    height * 0.80,
+    14,
+    14
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.39,
+    height * 0.80,
+    4,
+    4
+  );
+
+
+  fill(255, 225, 70, 45);
+  ellipse(
+    width * 0.48,
+    height * 0.84,
+    22,
+    22
+  );
+
+  fill(255, 235, 90);
+  ellipse(
+    width * 0.48,
+    height * 0.84,
+    6,
+    6
+  );
+
+
+  fill(255, 220, 60, 25);
+  ellipse(
+    width * 0.55,
+    height * 0.89,
+    14,
+    14
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.55,
+    height * 0.89,
+    4,
+    4
+  );
+
+
+  fill(255, 220, 60, 25);
+  ellipse(
+    width * 0.65,
+    height * 0.79,
+    13,
+    13
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.65,
+    height * 0.79,
+    4,
+    4
+  );
+
+
+  fill(255, 225, 70, 45);
+  ellipse(
+    width * 0.73,
+    height * 0.86,
+    23,
+    23
+  );
+
+  fill(255, 235, 90);
+  ellipse(
+    width * 0.73,
+    height * 0.86,
+    6,
+    6
+  );
+
+
+  fill(255, 220, 60, 30);
+  ellipse(
+    width * 0.79,
+    height * 0.74,
+    15,
+    15
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.79,
+    height * 0.74,
+    4,
+    4
+  );
+
+
+  fill(255, 220, 60, 25);
+  ellipse(
+    width * 0.84,
+    height * 0.81,
+    12,
+    12
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.84,
+    height * 0.81,
+    3,
+    3
+  );
+
+
+  fill(255, 225, 70, 45);
+  ellipse(
+    width * 0.90,
+    height * 0.84,
+    23,
+    23
+  );
+
+  fill(255, 235, 90);
+  ellipse(
+    width * 0.90,
+    height * 0.84,
+    6,
+    6
+  );
+
+
+  fill(255, 220, 60, 30);
+  ellipse(
+    width * 0.94,
+    height * 0.75,
+    15,
+    15
+  );
+
+  fill(255, 230, 80);
+  ellipse(
+    width * 0.94,
+    height * 0.75,
+    4,
+    4
+  );
+
+
+  // Points
+  stroke(255, 225, 100, 180);
+  strokeWeight(2);
+
+  point(
+    width * 0.13,
+    height * 0.84
+  );
+
+  point(
+    width * 0.22,
+    height * 0.91
+  );
+
+  point(
+    width * 0.34,
+    height * 0.75
+  );
+
+  point(
+    width * 0.43,
+    height * 0.89
+  );
+
+  point(
+    width * 0.59,
+    height * 0.82
+  );
+
+  point(
+    width * 0.70,
+    height * 0.76
+  );
+
+  point(
+    width * 0.87,
+    height * 0.90
+  );
+
+
+  // Title
+  noStroke();
+
+  fill(titleColor);
+
+  textSize(width / 20);
+
+  text(
+    "Firefly Night",
+    width * 0.09,
+    height * 0.14
+  );
+
+
+  fill(230, 235, 245);
+
+  textSize(width / 34);
+
+  text(
+    "Catch the Firefly!",
+    width * 0.09,
+    height * 0.19
+  );
+}
+
+
+// Frame
+function drawFrame() {
 
   noFill();
-  stroke(100, 150, 190);
 
-  arc(
-    width * 0.20,
-    seaY + height * 0.08,
-    width * 0.10,
-    height * 0.04,
-    0,
-    PI
-  );
-
-  arc(
-    width * 0.40,
-    seaY + height * 0.14,
-    width * 0.12,
-    height * 0.04,
-    0,
-    PI
-  );
-
-  arc(
-    width * 0.64,
-    seaY + height * 0.07,
-    width * 0.10,
-    height * 0.04,
-    0,
-    PI
-  );
-
-
-  // =====================================
-  // 草地
-  // =====================================
-
-  noStroke();
-  fill(25, 65, 55);
+  stroke(48, 25, 9);
+  strokeWeight(18);
 
   rect(
-    0,
-    grassY,
-    width,
-    height - grassY
+    9,
+    9,
+    width - 18,
+    height - 18
   );
 
 
-  // =====================================
-  // 第2周：line 线
-  // 第3周：for
-  // 草
-  // =====================================
+  stroke(88, 48, 15);
+  strokeWeight(7);
 
-  stroke(55, 120, 75);
-
-  for (let i = 1; i < 7; i++) {
-
-    let grassX = i * width / 7;
-
-    line(
-      grassX,
-      height,
-      grassX - width * 0.02,
-      grassY
-    );
-
-    line(
-      grassX,
-      height,
-      grassX + width * 0.02,
-      grassY
-    );
-  }
+  rect(
+    18,
+    18,
+    width - 36,
+    height - 36
+  );
 
 
-  // =====================================
-  // 第2周：自定义图形
-  // 小叶子
-  // =====================================
+  stroke(190, 140, 35);
+  strokeWeight(3);
 
+  rect(
+    22,
+    22,
+    width - 44,
+    height - 44
+  );
+
+
+  stroke(235, 190, 65);
+  strokeWeight(1);
+
+  rect(
+    27,
+    27,
+    width - 54,
+    height - 54
+  );
+
+
+  // Corner lines
+  stroke(225, 175, 50);
+  strokeWeight(4);
+
+  line(
+    32,
+    34,
+    32,
+    65
+  );
+
+  line(
+    32,
+    34,
+    65,
+    34
+  );
+
+
+  line(
+    width - 32,
+    34,
+    width - 32,
+    65
+  );
+
+  line(
+    width - 65,
+    34,
+    width - 32,
+    34
+  );
+
+
+  line(
+    32,
+    height - 65,
+    32,
+    height - 34
+  );
+
+  line(
+    32,
+    height - 34,
+    65,
+    height - 34
+  );
+
+
+  line(
+    width - 32,
+    height - 65,
+    width - 32,
+    height - 34
+  );
+
+  line(
+    width - 65,
+    height - 34,
+    width - 32,
+    height - 34
+  );
+
+
+  // Custom shapes
   noStroke();
-  fill(75, 140, 85);
+
+  fill(225, 175, 50);
+
 
   beginShape();
 
-  vertex(
-    width * 0.10,
-    grassY + height * 0.11
-  );
-
-  vertex(
-    width * 0.14,
-    grassY + height * 0.04
-  );
-
-  vertex(
-    width * 0.17,
-    grassY + height * 0.11
-  );
+  vertex(45, 45);
+  vertex(52, 52);
+  vertex(45, 59);
+  vertex(38, 52);
 
   endShape(CLOSE);
 
 
-  // =====================================
-  // 小花
-  // =====================================
+  beginShape();
 
-  // 粉色花
-  fill(255, 180, 200);
+  vertex(width - 45, 45);
+  vertex(width - 38, 52);
+  vertex(width - 45, 59);
+  vertex(width - 52, 52);
 
-  ellipse(
-    width * 0.20,
-    grassY + height * 0.05,
-    starSize * 2.5,
-    starSize * 2.5
-  );
-
-  ellipse(
-    width * 0.36,
-    grassY + height * 0.10,
-    starSize * 2.5,
-    starSize * 2.5
-  );
+  endShape(CLOSE);
 
 
-  // 紫色花
-  fill(220, 190, 255);
+  beginShape();
 
-  ellipse(
-    width * 0.60,
-    grassY + height * 0.05,
-    starSize * 2.5,
-    starSize * 2.5
-  );
+  vertex(45, height - 59);
+  vertex(52, height - 52);
+  vertex(45, height - 45);
+  vertex(38, height - 52);
 
-  ellipse(
-    width * 0.76,
-    grassY + height * 0.10,
-    starSize * 2.5,
-    starSize * 2.5
-  );
+  endShape(CLOSE);
 
 
-  // 花心
-  fill(255, 225, 120);
+  beginShape();
 
-  ellipse(
-    width * 0.20,
-    grassY + height * 0.05,
-    starSize,
-    starSize
-  );
+  vertex(width - 45, height - 59);
+  vertex(width - 38, height - 52);
+  vertex(width - 45, height - 45);
+  vertex(width - 52, height - 52);
 
-  ellipse(
-    width * 0.36,
-    grassY + height * 0.10,
-    starSize,
-    starSize
-  );
+  endShape(CLOSE);
 
-  ellipse(
-    width * 0.60,
-    grassY + height * 0.05,
-    starSize,
-    starSize
-  );
-
-  ellipse(
-    width * 0.76,
-    grassY + height * 0.10,
-    starSize,
-    starSize
-  );
-
-
-  // =====================================
-  // 第2周：文字
-  // =====================================
-
-  fill(230);
-
-  textSize(width / 40);
-
-  text(
-    "Firefly Night",
-    width * 0.05,
-    height * 0.08
-  );
+  strokeWeight(1);
 }
 
 
-// ========================================
-// 第4周 函数类型②
-// 有参数 + 无返回值
-// ========================================
-
+// Function type 2
 function drawBug(i, r, g, b) {
 
   noStroke();
 
-
-  // 萤火虫外面的光
+  // Glow
   fill(r, g, b, 70);
 
   ellipse(
@@ -460,7 +684,17 @@ function drawBug(i, r, g, b) {
   );
 
 
-  // 萤火虫身体
+  fill(r, g, b, 120);
+
+  ellipse(
+    x[i],
+    y[i],
+    bugSize * 1.4,
+    bugSize * 1.4
+  );
+
+
+  // Body
   fill(r, g, b);
 
   ellipse(
@@ -471,52 +705,155 @@ function drawBug(i, r, g, b) {
   );
 
 
-  // 萤火虫的头
+  // Arc
+  noFill();
+
+  stroke(r, g, b);
+  strokeWeight(1);
+
+  arc(
+    x[i],
+    y[i] + bugSize * 0.12,
+    bugSize * 0.55,
+    bugSize * 0.28,
+    0,
+    PI
+  );
+
+  noStroke();
+
+
+  // Wings
+  fill(230, 230, 220);
+
+  ellipse(
+    x[i] - bugSize * 0.35,
+    y[i] - bugSize * 0.15,
+    bugSize * 0.55,
+    bugSize * 0.30
+  );
+
+  ellipse(
+    x[i] + bugSize * 0.35,
+    y[i] - bugSize * 0.15,
+    bugSize * 0.55,
+    bugSize * 0.30
+  );
+
+
+  // Head
   fill(80, 60, 50);
 
   ellipse(
     x[i],
-    y[i] - bugSize * 0.4,
+    y[i] - bugSize * 0.42,
     bugSize * 0.35,
-    bugSize * 0.4
+    bugSize * 0.40
   );
 }
 
 
-// ========================================
-// 第4周 函数类型③
-// 无参数 + 有返回值
-// ========================================
+// Target
+function drawTarget() {
 
+  noStroke();
+
+  fill(255, 235, 80, 60);
+
+  ellipse(
+    targetX,
+    targetY,
+    targetSize * 1.8,
+    targetSize * 1.8
+  );
+
+
+  fill(255, 235, 80, 120);
+
+  ellipse(
+    targetX,
+    targetY,
+    targetSize * 1.4,
+    targetSize * 1.4
+  );
+
+
+  fill(255, 235, 80);
+
+  ellipse(
+    targetX,
+    targetY,
+    targetSize,
+    targetSize
+  );
+
+
+  // Arc
+  noFill();
+
+  stroke(255, 235, 80);
+  strokeWeight(1);
+
+  arc(
+    targetX,
+    targetY + targetSize * 0.12,
+    targetSize * 0.55,
+    targetSize * 0.28,
+    0,
+    PI
+  );
+
+  noStroke();
+
+
+  // Wings
+  fill(230, 230, 220);
+
+  ellipse(
+    targetX - targetSize * 0.35,
+    targetY - targetSize * 0.15,
+    targetSize * 0.55,
+    targetSize * 0.30
+  );
+
+  ellipse(
+    targetX + targetSize * 0.35,
+    targetY - targetSize * 0.15,
+    targetSize * 0.55,
+    targetSize * 0.30
+  );
+
+
+  // Head
+  fill(80, 60, 50);
+
+  ellipse(
+    targetX,
+    targetY - targetSize * 0.42,
+    targetSize * 0.35,
+    targetSize * 0.40
+  );
+}
+
+
+// Function type 3
 function getBugSize() {
 
   return bugSize;
 }
 
 
-// ========================================
-// 第4周 函数类型④
-// 有参数 + 有返回值
-//
-// 第5周：圆和圆碰撞
-// ========================================
+// Function type 4
+function checkTarget(mx, my) {
 
-function checkMoon(i) {
-
-  let s = getBugSize();
-
-
-  // 萤火虫和月亮中心之间的距离
-  let d = dist(
-    x[i],
-    y[i],
-    moonX,
-    moonY
+  let distance = dist(
+    targetX,
+    targetY,
+    mx,
+    my
   );
 
-
-  // 圆和圆发生碰撞
-  if (d < (s + moonSize) / 2) {
+  if (distance < targetSize / 2) {
 
     return true;
 
@@ -527,63 +864,25 @@ function checkMoon(i) {
 }
 
 
-// ========================================
-// 第5周：边界碰撞
-// ========================================
-
-function checkWall(i) {
-
-  let s = getBugSize();
-
-
-  // 左右边界
-  if (
-    x[i] < s / 2 ||
-    x[i] > width - s / 2
-  ) {
-
-    speedX[i] = speedX[i] * -1;
-  }
-
-
-  // 上下边界
-  if (
-    y[i] < height * 0.25 ||
-    y[i] > grassY - s / 2
-  ) {
-
-    speedY[i] = speedY[i] * -1;
-  }
-}
-
-
-// ========================================
-// 第5周：3种移动
-//
-// ① 速度
-// ② 加速度
-// ③ 振动
-// ========================================
-
+// Movement
 function moveBug(i) {
 
+  // Speed
+  x[i] =
+    x[i] +
+    speedX[i];
 
-  // =====================================
-  // ① 速度
-  // =====================================
-
-  x[i] = x[i] + speedX[i];
-  y[i] = y[i] + speedY[i];
+  y[i] =
+    y[i] +
+    speedY[i];
 
 
-  // =====================================
-  // ② 加速度
-  // 第一只萤火虫
-  // =====================================
+  // Acceleration
+  if (i == 1) {
 
-  if (i == 0) {
-
-    speedY[i] = speedY[i] + accel;
+    speedY[i] =
+      speedY[i] +
+      accel;
 
     if (speedY[i] > 1.5) {
 
@@ -596,17 +895,163 @@ function moveBug(i) {
   }
 
 
-  // =====================================
-  // ③ 振动
-  // 第五只萤火虫
-  // =====================================
-
-  if (i == 4) {
+  // Vibration
+  if (i == 3) {
 
     y[i] =
       height * 0.35 +
-      sin(angle) * height * 0.08;
+      sin(angle) *
+      height * 0.08;
 
-    angle = angle + 0.03;
+    angle =
+      angle +
+      0.03;
   }
+}
+
+
+// Boundary
+function checkWall(i) {
+
+  let s = getBugSize();
+
+  if (i == 0) {
+
+    if (x[i] < s) {
+
+      x[i] = s;
+
+    } else if (x[i] > width - s) {
+
+      x[i] =
+        width - s;
+    }
+
+
+    if (y[i] < height * 0.25) {
+
+      y[i] =
+        height * 0.25;
+
+    } else if (y[i] > height * 0.68) {
+
+      y[i] =
+        height * 0.68;
+    }
+
+  } else {
+
+    if (x[i] < s) {
+
+      x[i] = s;
+
+      speedX[i] =
+        speedX[i] * -1;
+
+    } else if (x[i] > width - s) {
+
+      x[i] =
+        width - s;
+
+      speedX[i] =
+        speedX[i] * -1;
+    }
+
+
+    if (y[i] < height * 0.25) {
+
+      y[i] =
+        height * 0.25;
+
+      speedY[i] =
+        speedY[i] * -1;
+
+    } else if (y[i] > height * 0.68) {
+
+      y[i] =
+        height * 0.68;
+
+      speedY[i] =
+        speedY[i] * -1;
+    }
+  }
+}
+
+
+// Event function 1
+function mouseReleased() {
+
+  titleColor =
+    color(
+      255,
+      225,
+      120
+    );
+}
+
+
+// Event function 2
+function keyPressed() {
+
+  switch (key) {
+
+    case '1':
+
+      titleColor =
+        color(
+          255,
+          185,
+          205
+        );
+
+      break;
+
+
+    case '2':
+
+      titleColor =
+        color(
+          185,
+          210,
+          255
+        );
+
+      break;
+  }
+}
+
+
+function mousePressed() {
+
+  if (
+    checkTarget(
+      mouseX,
+      mouseY
+    )
+  ) {
+
+    score++;
+
+    soundFile.play();
+
+    targetX = random(
+      targetSize,
+      width - targetSize
+    );
+
+    targetY = random(
+      height * 0.25,
+      height * 0.66
+    );
+
+    previousTime =
+      millis();
+  }
+
+  titleColor =
+    color(
+      255,
+      185,
+      205
+    );
 }

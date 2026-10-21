@@ -1,4 +1,4 @@
-/*! p5.js v2.3.2 July 30, 2026 */
+/*! p5.js v2.3.4 September 25, 2026 */
 var p5 = (function () {
   'use strict';
 
@@ -15,7 +15,7 @@ var p5 = (function () {
    * @property {String} VERSION
    * @final
    */
-  const VERSION = '2.3.2';
+  const VERSION = '2.3.4';
 
   // GRAPHICS RENDERER
   /**
@@ -38949,13 +38949,13 @@ var p5 = (function () {
             fn.saveJSON(args[0], args[1], args[2]);
             return;
           case 'txt':
-            fn.saveStrings(args[0], args[1], args[2]);
+            fn.saveStrings(args[0], args[1], 'txt', args[2]);
             return;
           // =================================================
           // OPTION 3: decide based on object...
           default:
             if (args[0] instanceof Array) {
-              fn.saveStrings(args[0], args[1], args[2]);
+              fn.saveStrings(args[0], args[1], undefined, args[2]);
             } else if (args[0] instanceof p5.Table) {
               fn.saveTable(args[0], args[1], args[2]);
             } else if (args[0] instanceof p5.Image) {
@@ -39416,6 +39416,40 @@ var p5 = (function () {
 
 
   function loadingDisplaying(p5, fn){
+    /**
+     * The largest possible number of pixels a gif frame can contain.
+     *
+     * This static property defines how large, in terms of dimension, a gif image
+     * is allowed to be loaded into a p5 sketch. The default value is
+     * 16,000,000. This means an image's width multiplied by its height must not
+     * exceed 100,000,000. For example, an image with width 10,000 and height
+     * 10,000 is just enough, as well as an image with width 5000 and height
+     * 20,000. An image with width 20,000 and height 20,000 is not allowed and
+     * will cause an error when it is loaded.
+     *
+     * To avoid this error, you should try to reduce the image dimension of the
+     * gif. If that is not possible or not desirable, you can set
+     * `MAX_GIF_PIXELS` to a higher value instead.
+     *
+     * @static
+     * @property {Boolean} MAX_GIF_PIXELS
+     *
+     * @example
+     * // META: norender
+     * // Increase the maximum pixel counts to 200,000,000
+     * p5.MAX_GIF_PIXELS = 200_000_000;
+     *
+     * let img;
+     * async function setup() {
+     *   createCanvas(100, 100);
+     *
+     *   background(200);
+     *
+     *   img = await loadImage('./a-large-animated.gif');
+     * }
+     */
+    p5.MAX_GIF_PIXELS = 4000 * 4000; // 4 Channel per pixels for total of 64MB
+
     /**
      * Loads an image to create a <a href="#/p5.Image">p5.Image</a> object.
      *
@@ -40028,6 +40062,13 @@ var p5 = (function () {
       pImg.height = pImg.canvas.height = gifReader.height;
       const frames = [];
       const numFrames = gifReader.numFrames();
+
+      if (pImg.width * pImg.height > p5.MAX_GIF_PIXELS) {
+        // GIF is too big, refuse to proceed
+        p5.FES.log`The GIF is over the maximum allowed dimension. Try to shrink the image or set p5.MAX_GIF_PIXELS to a higher value.`();
+        throw new Error("The GIF is over the maximum allowed dimension.");
+      }
+
       let framePixels = new Uint8ClampedArray(pImg.width * pImg.height * 4);
 
       const loadGIFFrameIntoImage = (frameNum, gifReader) => {
@@ -46909,14 +46950,14 @@ var p5 = (function () {
 
     /**
      * Multiplies a quaternion with other quaternion.
-     * @method mult
+     * @method multiply
      * @param  {p5.Quat} [quat] quaternion to multiply with the quaternion calling the method.
      * @chainable
      */
     multiply(quat) {
 
       return new Quat(
-        this.w * quat.w - this.vec.x * quat.vec.x - this.vec.y * quat.vec.y - this.vec.z - quat.vec.z,
+        this.w * quat.w - this.vec.x * quat.vec.x - this.vec.y * quat.vec.y - this.vec.z * quat.vec.z,
         this.w * quat.vec.x + this.vec.x * quat.w + this.vec.y * quat.vec.z - this.vec.z * quat.vec.y,
         this.w * quat.vec.y - this.vec.x * quat.vec.z + this.vec.y * quat.w + this.vec.z * quat.vec.x,
         this.w * quat.vec.z + this.vec.x * quat.vec.y - this.vec.y * quat.vec.x + this.vec.z * quat.w
@@ -81395,7 +81436,7 @@ var p5 = (function () {
         const fnNames = entryPoints;
 
         if (context.preload && !p5.isPreloadSupported()) {
-          p5._error(context, translator('fes.preloadDisabled'));
+          p5._error(p5.instance, translator('fes.preloadDisabled'));
         }
 
         const fxns = {};
@@ -82035,7 +82076,7 @@ var p5 = (function () {
       p5._fesLogCache = {};
 
       lifecycles.presetup = function () {
-        window.addEventListener('load', checkForUserDefinedFunctions, false);
+        checkForUserDefinedFunctions(window);
         window.addEventListener('error', p5._fesErrorMonitor, false);
         window.addEventListener('unhandledrejection', p5._fesErrorMonitor, false);
       };
@@ -89010,7 +89051,8 @@ var p5 = (function () {
   		overloads: [
   			[
   				"Number",
-  				"Number"
+  				"Number",
+  				"...Number[]"
   			],
   			[
   				"Number[]"
@@ -89193,7 +89235,8 @@ var p5 = (function () {
   		overloads: [
   			[
   				"Number",
-  				"Number"
+  				"Number",
+  				"...Number[]"
   			],
   			[
   				"Number[]"
@@ -108242,6 +108285,7 @@ var p5 = (function () {
      * @method max
      * @param  {Number} n0 first number to compare.
      * @param  {Number} n1 second number to compare.
+     * @param  {...Number} rest additional numbers to compare.
      * @return {Number}             maximum number.
      */
     /**
@@ -108361,6 +108405,7 @@ var p5 = (function () {
      * @method min
      * @param  {Number} n0 first number to compare.
      * @param  {Number} n1 second number to compare.
+     * @param  {...Number} rest additional numbers to compare.
      * @return {Number}             minimum number.
      */
     /**
