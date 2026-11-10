@@ -1,0 +1,406 @@
+
+let num = 4, bugSize, accel = 0.01, angle = 0, titleColor;
+let x = [], y = [], speedX = [], speedY = [];
+let currentTime, previousTime = 0, interval, setTime = 1000;
+let score = 0, stage = 1, cosmosImage, soundFile;
+let target, gameOver = false, gameStart = 0, gameTime = 30, timeLeft = 30;
+let gameReady = false; // 判断游戏是否初始化完成
+
+// 初始化游戏
+async function setup() {
+  createCanvas(600, 500); // 画布宽600，高500
+
+  cosmosImage = await loadImage("data/cosmos.jpg");
+  soundFile = await loadSound("data/catch.mp3");
+
+  bugSize = 26; // 普通萤火虫身体直径26像素
+  titleColor = color(255, 225, 120); // 金黄色标题
+
+  // 普通萤火虫初始位置
+  x[0] = width * 0.18; x[1] = width * 0.45;
+  x[2] = width * 0.77; x[3] = width * 0.65;
+
+  y[0] = height * 0.44; y[1] = height * 0.62;
+  y[2] = height * 0.40; y[3] = height * 0.82;
+
+  // 水平速度：正数向右，负数向左
+  speedX[0] = 1; speedX[1] = -1;
+  speedX[2] = 1.2; speedX[3] = -1.2;
+
+  // 垂直速度：正数向下，负数向上
+  speedY[0] = 0.5; speedY[1] = -0.5;
+  speedY[2] = 0.7; speedY[3] = -0.7;
+
+  // 第10周：对象字面量，保存目标的位置、大小和类型
+  target = {
+    x: random(45, width - 45), // 横坐标45～555
+    y: random(height * 0.35, height * 0.88), // 纵坐标175～440
+    size: 40, // 目标身体直径40像素
+    special: false // false表示普通黄色目标
+  };
+
+  // 资源加载和初始化完成后，才开始30秒计时
+  gameStart = millis();
+  previousTime = gameStart;
+  gameReady = true;
+}
+
+// 游戏主循环
+function draw() {
+  // 初始化未完成时不运行游戏，避免倒计时异常
+  if (!gameReady) return;
+
+  background(10, 18, 35);
+  drawNight();
+
+  // 根据分数改变难度
+  if (score < 5) {
+    stage = 1;
+    setTime = 1000; // 0～4分，每1000毫秒（1秒）刷新
+  } else if (score < 10) {
+    stage = 2;
+    setTime = 800; // 5～9分，每800毫秒刷新
+  } else {
+    stage = 3;
+    setTime = 600; // 10分及以上，每600毫秒刷新
+  }
+
+  // 绘制4只普通萤火虫
+  for (let i = 0; i < num; i++) {
+    // i=0表示第1只萤火虫，它不移动
+    if (i != 0 && !gameOver) moveBug(i);
+
+    // 鼠标按下时变粉色，否则显示黄色
+    if (mouseIsPressed && !gameOver) drawBug(i, 255, 180, 200);
+    else drawBug(i, 255, 235, 100);
+
+    checkWall(i); // 检查萤火虫是否超出边界
+  }
+
+  // 30秒倒计时与目标刷新
+  if (!gameOver) {
+    currentTime = millis(); // 当前程序运行时间，单位毫秒
+
+    // gameTime=30，表示一局30秒
+    // currentTime-gameStart表示本局经过的毫秒数
+    // 除以1000转换为秒，floor()表示向下取整
+    timeLeft = gameTime - floor((currentTime - gameStart) / 1000);
+
+    // 把剩余时间限制在0～30秒之间
+    timeLeft = constrain(timeLeft, 0, gameTime);
+
+    // 剩余时间为0时，游戏结束
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      gameOver = true;
+    } else {
+      // 计算距离上次目标刷新经过的毫秒数
+      interval = currentTime - previousTime;
+
+      // setTime为1000、800或600，根据阶段变化
+      if (interval > setTime) {
+        resetTarget(); // 随机改变目标位置和类型
+        previousTime = millis(); // 重新记录刷新时间
+      }
+    }
+  }
+
+  // 游戏未结束时绘制目标萤火虫
+  if (!gameOver) drawTarget();
+
+  // 浅蓝灰色半透明游戏信息栏
+  noStroke();
+  fill(185, 205, 225, 125); // 第4个数字125表示透明度
+  rect(width * 0.08, height * 0.205, width * 0.84, 48, 10);
+
+  // 横向居中显示分数、阶段和剩余时间
+  fill(25, 40, 65);
+  textSize(20);
+  textAlign(CENTER, CENTER);
+  text("Score: " + score, width * 0.22, height * 0.253);
+  text("Stage: " + stage, width * 0.50, height * 0.253);
+  text("Time: " + timeLeft, width * 0.78, height * 0.253);
+  textAlign(LEFT, BASELINE);
+
+  // 游戏结束界面
+  if (gameOver) {
+    noStroke();
+    fill(10, 18, 35, 205);
+    rect(width * 0.23, height * 0.36, width * 0.54, height * 0.28);
+
+    fill(255, 225, 120);
+    textSize(30);
+    text("Game Over", width * 0.31, height * 0.45);
+
+    fill(245, 240, 230);
+    textSize(19);
+    text("Final Score: " + score, width * 0.31, height * 0.51);
+
+    textSize(15);
+    text("Press R to restart", width * 0.31, height * 0.57);
+  }
+
+  drawStar(); // 绘制右上角星星
+}
+
+// 绘制背景和标题
+function drawNight() {
+  image(cosmosImage, 0, 0, width, height);
+
+  noStroke();
+  fill(titleColor);
+  textSize(width / 20); // 600÷20=30像素
+  text("Firefly Night", width * 0.09, height * 0.13);
+
+  fill(230, 235, 245);
+  textSize(width / 34);
+  text("Catch the Firefly!", width * 0.09, height * 0.18);
+}
+
+// 绘制右上角金色星星
+function drawStar() {
+  noStroke();
+  fill(255, 225, 130, 190);
+
+  // 使用8个顶点组成四角星
+  beginShape();
+  vertex(480, 68); vertex(483, 77);
+  vertex(492, 80); vertex(483, 83);
+  vertex(480, 92); vertex(477, 83);
+  vertex(468, 80); vertex(477, 77);
+  endShape(CLOSE);
+}
+
+// 绘制普通萤火虫
+function drawBug(i, r, g, b) {
+  noStroke();
+
+  // 两层半透明圆形形成柔和光晕
+  fill(r, g, b, 35);
+  ellipse(x[i], y[i], bugSize * 2, bugSize * 2);
+
+  fill(r, g, b, 80);
+  ellipse(x[i], y[i], bugSize * 1.4, bugSize * 1.4);
+
+  // 身体
+  fill(r, g, b);
+  ellipse(x[i], y[i], bugSize, bugSize);
+
+  // 身体弧线
+  noFill();
+  stroke(r, g, b);
+  strokeWeight(1);
+  arc(x[i], y[i] + bugSize * 0.12, bugSize * 0.55, bugSize * 0.28, 0, PI);
+
+  // 左右两侧翅膀
+  noStroke();
+  fill(230, 230, 220);
+  ellipse(x[i] - bugSize * 0.35, y[i] - bugSize * 0.15, bugSize * 0.55, bugSize * 0.30);
+  ellipse(x[i] + bugSize * 0.35, y[i] - bugSize * 0.15, bugSize * 0.55, bugSize * 0.30);
+
+  // 头部
+  fill(80, 60, 50);
+  ellipse(x[i], y[i] - bugSize * 0.42, bugSize * 0.35, bugSize * 0.40);
+}
+
+// 绘制目标萤火虫
+function drawTarget() {
+  noStroke();
+
+  // special=true表示粉色特殊目标
+  if (target.special) {
+    fill(255, 150, 205, 35);
+    ellipse(target.x, target.y, target.size * 2, target.size * 2);
+
+    fill(255, 150, 205, 80);
+    ellipse(target.x, target.y, target.size * 1.4, target.size * 1.4);
+
+    fill(255, 150, 205);
+  } else {
+    // special=false表示黄色普通目标
+    fill(255, 235, 80, 35);
+    ellipse(target.x, target.y, target.size * 2, target.size * 2);
+
+    fill(255, 235, 80, 80);
+    ellipse(target.x, target.y, target.size * 1.4, target.size * 1.4);
+
+    fill(255, 235, 80);
+  }
+
+  // 身体，直径40像素
+  ellipse(target.x, target.y, target.size, target.size);
+
+  // 身体弧线
+  noFill();
+  stroke(255, 235, 80);
+  strokeWeight(1);
+  arc(target.x, target.y + target.size * 0.12, target.size * 0.55, target.size * 0.28, 0, PI);
+
+  // 左右翅膀
+  noStroke();
+  fill(230, 230, 220);
+  ellipse(target.x - target.size * 0.35, target.y - target.size * 0.15, target.size * 0.55, target.size * 0.30);
+  ellipse(target.x + target.size * 0.35, target.y - target.size * 0.15, target.size * 0.55, target.size * 0.30);
+
+  // 头部
+  fill(80, 60, 50);
+  ellipse(target.x, target.y - target.size * 0.42, target.size * 0.35, target.size * 0.40);
+}
+
+// 返回普通萤火虫大小
+function getBugSize() {
+  return bugSize; // 返回26
+}
+
+// 判断鼠标是否点击目标
+function checkTarget(mx, my) {
+  // dist()计算鼠标与目标中心之间的距离
+  let distance = dist(target.x, target.y, mx, my);
+
+  // target.size=40，除以2得到半径20
+  if (distance < target.size / 2) return true; // 距离小于20，点击成功
+  else return false; // 否则点击失败
+}
+
+// 控制普通萤火虫移动、加速度和上下振动
+function moveBug(i) {
+
+  // 每帧更新位置：新位置=原位置+速度
+  x[i] = x[i] + speedX[i]; // 
+  y[i] = y[i] + speedY[i]; // 
+
+  // 第2只萤火虫：使用加速度改变上下移动速度
+  if (i == 1) { // 数组从0开始，i=1表示第2只
+
+    speedY[i] = speedY[i] + accel; // 每帧速度增加或减少0.01
+
+    // 1.5表示向下速度的变化阈值
+    if (speedY[i] > 1.5) accel = -0.01; // 超过1.5后，加速度变负
+
+    // -1.5表示向上速度的变化阈值
+    else if (speedY[i] < -1.5) accel = 0.01; // 小于-1.5后，加速度变正
+  }
+
+  // 第4只萤火虫：使用sin()实现周期性上下振动
+  if (i == 3) { // i=3表示第4只
+
+    // 0.60表示画布高度的60%，500×0.60=300（振动中心）
+    // 0.12表示画布高度的12%，500×0.12=60（振动幅度）
+    // sin(angle)范围为-1～1，所以y在240～360之间变化
+    y[i] = height * 0.60 + sin(angle) * height * 0.12;
+
+    angle = angle + 0.03; // 每帧角度增加0.03弧度，控制振动速度
+  }
+}
+
+// 边界碰撞：限制萤火虫活动范围，并控制反弹
+function checkWall(i) {
+  let s = getBugSize(); // s=26，萤火虫身体直径26像素
+
+  // i=0表示第1只萤火虫，它不移动，只限制位置
+  if (i == 0) {
+
+    // 左右边界：画布宽600，允许中心x在26～574之间
+    if (x[i] < s) x[i] = s; // x小于26时，调整回26
+    else if (x[i] > width - s) x[i] = width - s; // x大于574时，调整回574
+
+    // 上下边界：画布高500，0.32表示32%，0.90表示90%
+    if (y[i] < height * 0.32) y[i] = height * 0.32; // 上边界：500×0.32=160
+    else if (y[i] > height * 0.90) y[i] = height * 0.90; // 下边界：500×0.90=450
+
+  } else {
+
+    // 其他3只萤火虫移动时，碰到边界会反弹
+
+    // 左边界：x小于26时，调整位置并改变方向
+    if (x[i] < s) {
+      x[i] = s; // 回到x=26
+      speedX[i] = speedX[i] * -1; // 乘以-1，向左变向右
+    }
+
+    // 右边界：600-26=574
+    else if (x[i] > width - s) {
+      x[i] = width - s; // 回到x=574
+      speedX[i] = speedX[i] * -1; // 乘以-1，向右变向左
+    }
+
+    // 上边界：500×0.32=160，避免进入标题区域
+    if (y[i] < height * 0.32) {
+      y[i] = height * 0.32; // 回到y=160
+      speedY[i] = speedY[i] * -1; // 乘以-1，向上变向下
+    }
+
+    // 下边界：500×0.90=450
+    else if (y[i] > height * 0.90) {
+      y[i] = height * 0.90; // 回到y=450
+      speedY[i] = speedY[i] * -1; // 乘以-1，向下变向上
+    }
+  }
+}
+
+// 第10周：随机刷新目标萤火虫
+function resetTarget() {
+
+  // 横坐标在45～555之间随机生成，左右各留45像素
+  target.x = random(45, width - 45);
+
+  // 纵坐标在175～440之间随机生成
+  // 0.35表示35%，0.88表示88%
+  target.y = random(height * 0.35, height * 0.88);
+
+  // random(1)生成0～1之间的随机数
+  // 小于0.25时为true，约25%概率出现粉色特殊目标
+  target.special = random(1) < 0.25;
+}
+
+// 鼠标松开事件
+function mouseReleased() {
+  titleColor = color(255, 225, 120); // 标题恢复金黄色
+}
+
+// 键盘事件
+function keyPressed() {
+  switch (key) {
+    case '1':
+      titleColor = color(255, 185, 205); // 按1变粉色
+      break;
+
+    case '2':
+      titleColor = color(185, 210, 255); // 按2变浅蓝色
+      break;
+
+    // 按R重新开始游戏
+    case 'r':
+    case 'R':
+      if (gameOver) {
+        score = 0; // 分数清零
+        stage = 1; // 恢复第一阶段
+        timeLeft = gameTime; // 恢复30秒
+        gameOver = false; // 取消结束状态
+
+        resetTarget(); // 重新生成目标
+        gameStart = millis(); // 重新记录游戏开始时间
+        previousTime = gameStart; // 重新记录目标刷新时间
+      }
+      break;
+  }
+}
+
+// 鼠标点击事件
+function mousePressed() {
+  if (!gameReady) return; // 初始化未完成时不处理点击
+
+  // 游戏未结束，并且点击到目标时计分
+  if (!gameOver && checkTarget(mouseX, mouseY)) {
+
+    // 第10周：粉色特殊目标2分，黄色普通目标1分
+    if (target.special) score = score + 2;
+    else score++;
+
+    soundFile.play(); 
+    resetTarget(); // 点击成功后立即刷新目标
+    previousTime = millis(); // 重新计算目标刷新时间
+  }
+
+  titleColor = color(255, 185, 205); // 鼠标按下时标题变粉色
+}
